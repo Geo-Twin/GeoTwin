@@ -75,11 +75,17 @@ module.exports = (env, argv) => ([{
 		//	extensions: ['ts', 'tsx']
 		// }), // Disabled for Docker build
 		new DefinePlugin({
-			'process.env': JSON.stringify(
+			'process.env.NODE_ENV': JSON.stringify(argv.mode),
+			'process.env.TILE_SERVER_ENDPOINT': JSON.stringify(
+				argv.mode === 'production' 
+					? 'https://geotwin-tiles-production.up.railway.app'
+					: process.env.TILE_SERVER_ENDPOINT || 'http://localhost:3000'
+			),
+			'process.env.TILES_ENDPOINT_TEMPLATE': JSON.stringify(
 				argv.mode === 'production'
-						? process.env // Use system environment variables in production
-						: dotenv.config().parsed // Use .env variables in development
-		),
+					? 'https://geotwin-tiles-production.up.railway.app/data/tiles/{z}/{x}/{y}.pbf'
+					: process.env.TILES_ENDPOINT_TEMPLATE || 'http://localhost:3000/data/tiles/{z}/{x}/{y}.pbf'
+			),
 			COMMIT_SHA: JSON.stringify(COMMIT_SHA),
 			COMMIT_BRANCH: JSON.stringify(COMMIT_BRANCH),
 			VERSION: JSON.stringify(VERSION)
