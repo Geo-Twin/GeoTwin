@@ -1,0 +1,36 @@
+@import "./../../styles/common.scss";
+
+.savedPlacesList {
+	overflow-y: auto;
+	margin: 0 0 12px 0;
+	max-height: 348px;
+
+	&::-webkit-scrollbar {
+		width: 5px;
+	}
+
+	&::-webkit-scrollbar-track-piece {
+		background-color: transparent;
+		opacity: 0.7;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		background-color: #CBCBCB;
+		border-radius: 999px;
+	}
+
+	&::-webkit-scrollbar-thumb:hover {
+		background-color: #909090;
+	}
+}
+
+.savedPlacesPlaceholder {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	font-size: 14px;
+	height: 60px;
+	color: #aeaeae;
+}

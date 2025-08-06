@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # GeoTwin Web Application - Main React/TypeScript flood visualization app
+  geotwin-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner 
+    ports:
+      - "8080:8080"
+    # volumes:
+    #   - ./entrypoint.sh:/usr/src/app/entrypoint.sh:ro
+    entrypoint: ["/usr/src/app/entrypoint.sh"]
+    environment:
+      - NODE_ENV=production
+      - PROXY_URL=http://geotwin-proxy:3001
+      - TILE_SERVER_URL=http://geotwin-tiles:8081
+    depends_on:
+      - geotwin-proxy
+      - geotwin-tiles
+    networks:
+      - geotwin-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # CORS Proxy Server - Node.js proxy for FastFlood API calls
+  geotwin-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.proxy
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - FASTFLOOD_API_URL=https://webapp-prod-fastflood.azurewebsites.net
+      - FASTFLOOD_API_KEY=Xx1BfVGbNP76RwYlmQtR8os4halVCpxH
+    networks:
+      - geotwin-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # Tile Server - tileserver-gl serving embedded map tiles
+  geotwin-tiles:
+    image: maptiler/tileserver-gl:latest
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./tiles/tiles.mbtiles:/data/tiles.mbtiles:ro
+    command: tileserver-gl --file /data/tiles.mbtiles --port 8081
+    networks:
+      - geotwin-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+networks:
+  geotwin-network:
+    driver: bridge
+    name: geotwin-network
+
+volumes:
+  geotwin-data:
+    name: geotwin-data

@@ -1,0 +1,23 @@
+@import "../../styles/common.scss";
+
+.debugInfo {
+	position: absolute;
+	bottom: 40px;
+	right: 4px;
+	font-size: 12px;
+	color: #fff;
+
+	&__item {
+		min-width: 50px;
+		display: inline-block;
+		text-align: right;
+
+		&--small {
+			min-width: 25px;
+		}
+
+		&--clickable {
+			cursor: pointer;
+		}
+	}
+}

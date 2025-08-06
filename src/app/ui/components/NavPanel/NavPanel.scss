@@ -1,0 +1,36 @@
+@import "../../styles/common.scss";
+
+.nav {
+	position: absolute;
+	top: 16px;
+	right: 16px;
+	display: flex;
+	flex-direction: row;
+	justify-content: end;
+
+	&__icon {
+		display: block;
+		margin: 0 0 0 8px;
+		width: 48px;
+		height: 48px;
+		border-radius: 24px;
+		text-align: center;
+		padding: 10px;
+		@extend %panel-bg;
+		@extend %panel-border;
+
+		&--active {
+
+		}
+	}
+}
+
+@include themify($themes) {
+	.nav__icon {
+		color: themed('text-color');
+
+		&--active {
+			background: themed('nav-icon-selected-bg');
+		}
+	}
+}

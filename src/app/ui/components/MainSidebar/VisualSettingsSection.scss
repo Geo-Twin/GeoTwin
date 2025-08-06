@@ -1,0 +1,79 @@
+@import "../../styles/common.scss";
+
+.visualSettings {
+	padding: 16px;
+}
+
+.navigationControls {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.controlGroup {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.controlItem {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	font-weight: 500;
+	margin-bottom: 8px;
+}
+
+.infoPanel {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.infoItem {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.infoHeader {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.infoText {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.infoList {
+	margin: 0;
+	padding-left: 16px;
+	font-size: 13px;
+
+	li {
+		margin-bottom: 4px;
+		line-height: 1.4;
+
+		&:last-child {
+			margin-bottom: 0;
+		}
+	}
+}
+
+@include themify($themes) {
+	.controlItem,
+	.infoHeader {
+		color: #ffffff;
+	}
+
+	.infoText,
+	.infoList {
+		color: #ffffff;
+	}
+}

@@ -1,0 +1,80 @@
+$theme-map: null;
+
+$themes: (
+	light: (
+		// GeoTwin Dark Theme - All text white for maximum contrast
+		panel-border-color: #333333,
+		panel-bg: rgba(40, 40, 40, 0.95),
+		text-color: #ffffff,
+		text-color-opposite: #000000,
+		text-color-subtle: #ffffff,
+		bg-primary: #2a2a2a,
+		button-border: #555555,
+		nav-icon-selected-bg: #4a4a4a,
+		category-bg: #353535,
+		button-bg: #404040,
+
+		keyboard-key-border-color: #c9c9c9,
+		keyboard-key-shadow-color: #d7d7d7,
+		keyboard-key-bg-color: #f2f2f2,
+		keyboard-key-text-color: #111,
+
+		modal-button-bg: #404040,
+		modal-button-bg-hover: #4a4a4a,
+		modal-button-text-color: #ffffff,
+		modal-button-border-color: #555555,
+		modal-button-shadow-color: rgba(0, 0, 0, 0.4),
+
+		panel-close-button-bg: #404040,
+		panel-close-button-bg-hover: #4a4a4a,
+		panel-close-button-text-color: #ffffff,
+
+		compass-outline-color: #888888,
+
+		modal-category-item-bg: #4a4a4a,
+	),
+	dark: (
+		panel-border-color: #222,
+		panel-bg: rgb(30, 30, 30, 0.92),
+		text-color: #eee,
+		text-color-opposite: #111,
+		text-color-subtle: #6b6b6b,
+		bg-primary: #171717,
+		button-border: #ccc,
+		nav-icon-selected-bg: #424242,
+		category-bg: #171717,
+		button-bg: #171717,
+
+		keyboard-key-border-color: #414141,
+		keyboard-key-shadow-color: #2d2d2d,
+		keyboard-key-bg-color: #272727,
+		keyboard-key-text-color: #eee,
+
+		modal-button-bg: #171717,
+		modal-button-bg-hover: #414141,
+		modal-button-text-color: #eee,
+		modal-button-border-color: #6c6c6c,
+		modal-button-shadow-color: rgba(161, 161, 161, 0.1),
+
+		panel-close-button-bg: #171717,
+		panel-close-button-bg-hover: #2a2a2a,
+		panel-close-button-text-color: #eee,
+
+		compass-outline-color: #eee,
+
+		modal-category-item-bg: #272727,
+	),
+);
+
+@mixin themify($themes) {
+	@each $name, $values in $themes {
+		[class~=#{$name}Theme] {
+			$theme-map: $values !global;
+			@content;
+		}
+	}
+}
+
+@function themed($key) {
+	@return map-get($theme-map, $key);
+}

@@ -1,0 +1,39 @@
+# GeoTwin CORS Proxy Server
+# Lightweight Node.js proxy for FastFlood API integration
+
+FROM node:18-alpine
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Set working directory
+WORKDIR /usr/src/app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production --silent
+
+# Copy proxy server file
+COPY proxy-server.js ./
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S geotwin && \
+    adduser -S geotwin -u 1001
+
+# Change ownership of app directory
+RUN chown -R geotwin:geotwin /usr/src/app
+
+# Switch to non-root user
+USER geotwin
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3001/health || exit 1
+
+# Expose port 3001
+EXPOSE 3001
+
+# Start the proxy server
+CMD ["node", "proxy-server.js"]

@@ -1,0 +1,29 @@
+@import "../../styles/common.scss";
+
+.panelBodyContainer {
+	max-height: calc(100vh - 400px);
+	overflow: hidden;
+	overflow-y: auto;
+	// Updated to match SelectionPanel scrollbar styling
+	scrollbar-width: thin;
+	scrollbar-color: #4a90e2 rgba(255, 255, 255, 0.1);
+
+	&::-webkit-scrollbar {
+		width: 8px;
+	}
+
+	&::-webkit-scrollbar-track {
+		background: rgba(255, 255, 255, 0.1);
+		border-radius: 4px;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		background: #4a90e2;
+		border-radius: 4px;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	&::-webkit-scrollbar-thumb:hover {
+		background: #357abd;
+	}
+}

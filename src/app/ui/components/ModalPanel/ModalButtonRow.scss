@@ -1,0 +1,20 @@
+@import "../../styles/common.scss";
+
+.container {
+	display: flex;
+	flex-direction: row;
+	justify-content: end;
+
+	&__button {
+		margin: 0 0 0 8px;
+	}
+}
+
+@include themify($themes) {
+	.container {
+		&__button {
+			color: themed('text-color');
+			background: themed('button-bg');
+		}
+	}
+}

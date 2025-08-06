@@ -1,0 +1,200 @@
+@import "../../styles/common.scss";
+
+.sidebarToggle {
+	position: fixed;
+	top: 16px;
+	left: 16px;
+	width: 48px;
+	height: 48px;
+	border-radius: 24px;
+	text-align: center;
+	padding: 10px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+	transition: all 0.2s ease;
+	border: none;
+
+	@extend %panel-bg;
+	@extend %panel-border;
+
+	&:hover {
+		transform: scale(1.05);
+	}
+}
+
+.mainSidebar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 33.333vw;
+	height: 100vh;
+	z-index: 1000;
+	display: flex;
+	flex-direction: column;
+	animation: slideIn 0.3s ease-out;
+
+	@extend %panel-bg;
+	@extend %panel-border;
+	@extend %panel-border-radius;
+
+	&__header {
+		padding: 20px 24px;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		border-bottom: 1px solid;
+	}
+
+	&__title {
+		flex: 1;
+	}
+
+	&__closeButton {
+		background: none;
+		border: none;
+		font-size: 24px;
+		cursor: pointer;
+		padding: 8px;
+		border-radius: 4px;
+		transition: all 0.2s ease;
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+
+		&:hover {
+			transform: scale(1.1);
+		}
+	}
+
+	&__content {
+		flex: 1;
+		overflow-y: auto;
+		padding: 0;
+	}
+}
+
+.title {
+	margin: 0;
+	font-size: 24px;
+	font-weight: 600;
+	font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.subtitle {
+	margin: 4px 0 0 0;
+	font-size: 12px;
+	font-weight: 400;
+}
+
+.section {
+	&:not(:last-child) {
+		border-bottom: 1px solid;
+	}
+}
+
+.sectionHeader {
+	width: 100%;
+	padding: 16px 24px;
+	background: none;
+	border: none;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	font-size: 14px;
+	font-weight: 500;
+
+	&:hover {
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	&--active {
+		background: rgba(255, 255, 255, 0.1);
+	}
+}
+
+.sectionTitle {
+	flex: 1;
+	text-align: left;
+}
+
+.sectionArrow {
+	font-size: 12px;
+	transition: transform 0.2s ease;
+
+	&--expanded {
+		transform: rotate(180deg);
+	}
+}
+
+.sectionContent {
+	animation: expandDown 0.2s ease-out;
+}
+
+@keyframes slideIn {
+	from {
+		transform: translateX(-100%);
+	}
+	to {
+		transform: translateX(0);
+	}
+}
+
+@keyframes expandDown {
+	from {
+		max-height: 0;
+		opacity: 0;
+	}
+	to {
+		max-height: 1000px;
+		opacity: 1;
+	}
+}
+
+@include themify($themes) {
+	.sidebarToggle {
+		color: #ffffff;
+	}
+
+	.mainSidebar {
+		&__header {
+			border-color: themed('panel-border-color');
+		}
+	}
+
+	.title {
+		color: #ffffff;
+	}
+
+	.subtitle {
+		color: #ffffff;
+	}
+
+	.mainSidebar__closeButton {
+		color: #ffffff;
+
+		&:hover {
+			color: #ffffff;
+		}
+	}
+
+	.section {
+		&:not(:last-child) {
+			border-color: themed('panel-border-color');
+		}
+	}
+
+	.sectionHeader {
+		color: #ffffff;
+	}
+
+	.sectionArrow {
+		color: #ffffff;
+	}
+}

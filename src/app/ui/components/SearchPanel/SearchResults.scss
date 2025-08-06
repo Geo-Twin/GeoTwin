@@ -1,0 +1,9 @@
+@include themify($themes) {
+	.searchList__item {
+		border-bottom: 1px solid themed('panel-border-color');
+
+		&:last-child {
+			border-bottom: none;
+		}
+	}
+}

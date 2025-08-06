@@ -1,0 +1,20 @@
+{
+  "name": "geotwin-geotiff-processor",
+  "version": "1.0.0",
+  "description": "Server-side GeoTIFF processor for FastFlood data",
+  "main": "processor.js",
+  "scripts": {
+    "start": "node processor.js",
+    "dev": "nodemon processor.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.6.7",
+    "geotiff": "^2.0.7",
+    "proj4": "^2.9.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

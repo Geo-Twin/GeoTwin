@@ -1,0 +1,45 @@
+@import "./../../styles/common.scss";
+
+.geolocationButton {
+	position: absolute;
+	bottom: 140px;
+	right: 16px;
+	display: block;
+	margin: 0 0 0 8px;
+	width: 48px;
+	height: 48px;
+	border-radius: 24px;
+	text-align: center;
+	padding: 10px;
+	cursor: pointer;
+	@extend %panel-bg;
+	@extend %panel-border;
+
+	&--disabled {
+		cursor: progress;
+	}
+
+	&__icon {
+		font-size: 24px;
+		display: block;
+	}
+}
+
+@include themify($themes) {
+	.geolocationButton {
+		color: themed('text-color');
+	}
+}
+
+@keyframes iconSpin {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(359deg);
+	}
+}
+
+.spinner {
+	animation: iconSpin 2s infinite linear;
+}

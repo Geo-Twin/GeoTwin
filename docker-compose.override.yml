@@ -1,0 +1,29 @@
+# GeoTwin Development Override
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.override.yml up
+
+version: '3.8'
+
+services:
+  geotwin-app:
+    build:
+      target: builder
+    volumes:
+      - .:/usr/src/builder
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+    ports:
+      - "8080:8080"
+    entrypoint: []
+
+  geotwin-proxy:
+    volumes:
+      - ./proxy-server.js:/usr/src/app/proxy-server.js
+    environment:
+      - NODE_ENV=development
+      - DEBUG=true
+
+  geotwin-tiles:
+    # Development tile server configuration
+    environment:
+      - TILESERVER_GL_VERBOSE=true

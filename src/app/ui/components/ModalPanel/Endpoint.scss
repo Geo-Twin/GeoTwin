@@ -1,0 +1,116 @@
+@import "../../styles/common.scss";
+
+.endpoint {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	padding: 8px;
+	border-radius: 8px;
+	box-shadow: 0 1px 2px 0 rgba(16, 24, 40, 0.1);
+	margin: 0 0 12px 0;
+
+	&:last-child {
+		margin: 0;
+	}
+
+	&__info {
+		height: 32px;
+		display: flex;
+		flex-direction: row;
+		max-width: 340px;
+		flex: 1;
+
+		&__status {
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+		}
+
+		&__url {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			overflow: hidden;
+			flex: 1;
+		}
+	}
+
+	&__controls {
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-end;
+		align-items: center;
+
+		&__button {
+			margin: 0 0 0 8px;
+			height: 32px;
+			width: 36px;
+			display: flex;
+			flex-direction: row;
+			justify-content: center;
+			align-items: center;
+			border-radius: 5px;
+			font-size: 12px;
+			font-weight: 600;
+			transition: background-color 0.2s ease-in-out;
+
+			&--big {
+				width: 65px;
+			}
+		}
+	}
+}
+
+@include themify($themes) {
+	.endpoint {
+		background: themed('modal-category-item-bg');
+
+		&__controls {
+			&__button {
+				border: 1px solid themed('modal-button-border-color');
+				color: themed('modal-button-text-color');
+				background-color: themed('modal-button-bg');
+				box-shadow: 0 1px 2px 0 themed('modal-button-shadow-color');
+
+				&:hover {
+					background-color: themed('modal-button-bg-hover');
+				}
+			}
+		}
+	}
+}
+
+.status {
+	display: block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	margin: 0 8px 0 4px;
+
+	&--enabled {
+		background-color: #8dcca4;
+	}
+
+	&--disabled {
+		background-color: #ff7b8d;
+	}
+}
+
+.input {
+	border: none;
+	background: transparent;
+	color: inherit;
+	padding: 0;
+	margin: 0;
+	display: block;
+	font-size: 14px;
+	width: 100%;
+}
+
+.title {
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	overflow: hidden;
+	font-size: 14px;
+}
+

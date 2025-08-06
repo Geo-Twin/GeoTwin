@@ -1,0 +1,56 @@
+@import "./../../styles/common.scss";
+
+.controls {
+	width: 100%;
+}
+
+.controlsRow {
+	display: flex;
+	flex-direction: row;
+	margin: 10px 0 0 0;
+	align-items: center;
+	line-height: 1.5em;
+	font-size: 13px;
+	justify-content: space-between;
+
+	&__desc {
+		width: 45%;
+	}
+
+	&__keys {
+		width: 50%;
+		line-height: 2em;
+	}
+}
+
+.keyboardKey {
+	font-size: 0.85em;
+	line-height: 0.85em;
+	display: inline-block;
+	font-weight: 400;
+	letter-spacing: 0.05em;
+	padding: 4px 5px;
+	white-space: nowrap;
+	border-radius: 4px;
+	font-family: monospace;
+}
+
+@include themify($themes) {
+	.keyboardKey {
+		border: 1px solid themed('keyboard-key-border-color');
+		box-shadow: 0 1px 0 1px themed('keyboard-key-shadow-color');
+		background-color: themed('keyboard-key-bg-color');
+		color: themed('keyboard-key-text-color');
+	}
+}
+
+.links {
+	display: flex;
+	flex-direction: row;
+}
+
+.anchor {
+	display: block;
+	margin: 0 8px 0 0;
+	text-decoration: none;
+}

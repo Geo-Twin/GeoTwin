@@ -1,0 +1,15 @@
+{
+  "options": {
+    "paths": {
+      "root": "/data"
+    },
+    "serveAllFonts": false,
+    "serveAllStyles": false
+  },
+  "styles": {},
+  "data": {
+    "tiles": {
+      "mbtiles": "/data/tiles.mbtiles"
+    }
+  }
+}

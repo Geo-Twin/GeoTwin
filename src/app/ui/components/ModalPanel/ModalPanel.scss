@@ -1,0 +1,39 @@
+@import "../../styles/common.scss";
+
+.modal {
+	position: absolute;
+	top: 96px;
+	max-height: calc(100% - 192px);
+	right: 16px;
+	padding: 20px 24px;
+	border: 1px solid #eee;
+	width: 600px;
+	font-size: 14px;
+	@extend %panel-bg;
+	@extend %panel-border;
+	@extend %panel-border-radius;
+
+	&__header {
+		font-size: 24px;
+		font-weight: 600;
+		margin: 0 0 16px 0;
+		position: relative;
+		width: 90%;
+	}
+
+	&__body {
+		margin: 0;
+	}
+
+	&__close {
+		position: absolute;
+		top: 16px;
+		right: 16px;
+	}
+}
+
+@include themify($themes) {
+	.modal {
+		color: themed('text-color');
+	}
+}

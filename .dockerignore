@@ -1,0 +1,74 @@
+# GeoTwin Docker ignore file
+# Exclude unnecessary files from Docker build context
+
+# Node modules and build artifacts
+node_modules/
+dist/
+
+# Development files
+.git/
+.gitignore
+*.md
+!README.md
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Test files
+coverage/
+.nyc_output/
+test/
+tests/
+__tests__/
+
+# FastFloodApp directory (separate service)
+FastFloodApp/
+
+# External tile data (we use embedded tiles now)
+tiles-dm/
+
+# Documentation that's not needed in container
+docs/
+Context.md
+prd.md
+GeoTwin_SoftwareX_Technical_Description.md
+
+# Development tools
+.eslintrc*
+.prettierrc*
+jest.config.*
+webpack.config.dev.js
+
+# Temporary files
+tmp/
+temp/
+
+# Docker files (except main ones)
+docker-compose.override.yml
