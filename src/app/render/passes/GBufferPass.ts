@@ -36,8 +36,9 @@ import {
 } from "~/lib/tile-processing/tile3d/features/Tile3DInstance";
 import AdvancedInstanceMaterialContainer from "~/app/render/materials/AdvancedInstanceMaterialContainer";
 import {InstanceTextureIdList} from "~/app/render/textures/createInstanceTexture";
-import MapTimeSystem from "~/app/systems/MapTimeSystem";
-import PerspectiveCamera from "~/lib/core/PerspectiveCamera";
+import {RendererTypes} from "~/lib/renderer/RendererTypes";
+import FloodDisplacementMaterialContainer from "~/app/render/materials/FloodDisplacementMaterialContainer";
+import GPUFloodPlane from "~/app/objects/GPUFloodPlane";
 
 export default class GBufferPass extends Pass<{
 	GBufferRenderPass: {
@@ -556,7 +557,65 @@ export default class GBufferPass extends Pass<{
 		this.huggingMeshMaterial.getUniform('cameraPosition', 'PerMesh').value = new Float32Array(relativeCameraPosition);
 		this.huggingMeshMaterial.updateUniformBlock('PerMesh');
 
+		// GeoTwin: Bind flood texture for large flood plane transparency
+		if (planeName === 'globalFloodPlane' && floodPlane.floodTexture) {
+			this.huggingMeshMaterial.getUniform('u_floodData').value = floodPlane.floodTexture;
+		}
+
 		floodPlane.draw();
+	}
+
+	/**
+	 * Render TileProjectedMesh flood plane using EXACT same method as farmland/water
+	 */
+	private renderProjectedFloodMesh(planeName: string, terrain: any): void {
+		const sceneObjects = (this.manager.sceneSystem as any).objects;
+		const floodMesh = sceneObjects[planeName];
+		const camera = this.manager.sceneSystem.objects.camera;
+
+		if (!floodMesh || !floodMesh.isMeshReady()) {
+			return;
+		}
+
+		// Get terrain parameters EXACTLY like regular projected meshes do
+		const tileParams = terrain.getTileParams({
+			position: floodMesh.position,
+			matrixWorld: floodMesh.matrixWorld
+		});
+
+		if (!tileParams) {
+			return;
+		}
+
+		const {ring0, levelId, ring0Offset, ring1Offset} = tileParams;
+		const normalTextureTransforms = this.getTileNormalTexturesTransforms(floodMesh);
+		const relativeCameraPosition = this.getCameraPositionRelativeToTile(camera, floodMesh);
+		const detailTextureOffset = this.getTileDetailTextureOffset(floodMesh);
+
+		// Use EXACT same material and uniforms as regular projected meshes
+		this.renderer.useMaterial(this.projectedMeshMaterial);
+
+		const mvMatrix = Mat4.multiply(camera.matrixWorldInverse, floodMesh.matrixWorld);
+		const mvMatrixPrev = Mat4.multiply(this.cameraMatrixWorldInversePrev, floodMesh.matrixWorld);
+
+		// Set ALL the same uniforms as farmland/water (EXACT copy from renderProjectedMeshes)
+		this.projectedMeshMaterial.getUniform('modelViewMatrix', 'PerMesh').value = new Float32Array(mvMatrix.values);
+		this.projectedMeshMaterial.getUniform('modelViewMatrixPrev', 'PerMesh').value = new Float32Array(mvMatrixPrev.values);
+		this.projectedMeshMaterial.getUniform('transformNormal0', 'PerMesh').value = normalTextureTransforms[0];
+		this.projectedMeshMaterial.getUniform('transformNormal1', 'PerMesh').value = normalTextureTransforms[1];
+		this.projectedMeshMaterial.getUniform<UniformFloat1>('terrainRingSize', 'PerMesh').value[0] = ring0.size;
+		this.projectedMeshMaterial.getUniform('terrainRingOffset', 'PerMesh').value = new Float32Array([
+			ring0Offset.x, ring0Offset.y, ring1Offset.x, ring1Offset.y
+		]);
+		this.projectedMeshMaterial.getUniform<UniformFloat1>('terrainLevelId', 'PerMesh').value[0] = levelId;
+		this.projectedMeshMaterial.getUniform<UniformFloat1>('segmentCount', 'PerMesh').value[0] = ring0.segmentCount * 2;
+		this.projectedMeshMaterial.getUniform('cameraPosition', 'PerMesh').value = new Float32Array(relativeCameraPosition);
+		this.projectedMeshMaterial.getUniform('detailTextureOffset', 'PerMesh').value = detailTextureOffset;
+		this.projectedMeshMaterial.getUniform<UniformFloat1>('time', 'PerMaterial').value[0] = performance.now() * 0.001;
+
+		this.projectedMeshMaterial.updateUniformBlock('PerMesh');
+
+		floodMesh.draw();
 	}
 
 	/**
@@ -607,10 +666,18 @@ export default class GBufferPass extends Pass<{
 	}
 
 	private renderDynamicFastFloodPlanes(terrain: any): void {
-		// Dynamically render all registered FastFlood planes
 		const sceneObjects = (this.manager.sceneSystem as any).objects;
 
-		// Find all fastFloodPlane objects dynamically and render efficiently
+		// HYBRID APPROACH: Try large HuggingFloodPlane first, fallback to individual planes
+		const globalFloodPlane = sceneObjects.globalFloodPlane;
+
+		if (globalFloodPlane) {
+			// LARGE HUGGING FLOOD PLANE: Single large plane using proven approach with flood transparency
+			this.renderHuggingFloodPlane('globalFloodPlane', terrain);
+			return; // Large plane rendered successfully, skip individual planes
+		}
+
+		// FALLBACK: PROVEN APPROACH - Render individual HuggingFloodPlanes
 		let planeCount = 0;
 		const floodPlaneNames: string[] = [];
 
@@ -621,22 +688,89 @@ export default class GBufferPass extends Pass<{
 			}
 		}
 
-		// Render all flood planes using CORRECT hugging mesh method
+		// Render all flood planes using PROVEN hugging mesh method
 		for (const planeName of floodPlaneNames) {
 			this.renderHuggingFloodPlane(planeName, terrain);
 			planeCount++;
 		}
 
-		// Optional: Log rendering count for debugging (only occasionally to avoid spam)
-		if (planeCount > 0 && Math.random() < 0.01) { // 1% chance to log
+		// Optional: Log rendering count for debugging
+		if (planeCount > 0 && Math.random() < 0.01) {
 			console.log(` GeoTwin: Rendered ${planeCount} grid-based FastFlood planes`);
-
-			// Verify rendering completeness
-			const totalRegistered = floodPlaneNames.length;
-			if (planeCount !== totalRegistered) {
-				console.warn(` Rendering mismatch: Found ${totalRegistered} registered planes, rendered ${planeCount}`);
-			}
 		}
+	}
+
+	/**
+	 * Render GPU-based flood plane with displacement shaders (HIGH PERFORMANCE)
+	 */
+	private renderGPUFloodPlane(globalFloodPlane: any, terrain: any): void {
+		const camera = this.manager.sceneSystem.objects.camera;
+
+		// This is the critical step that creates the mesh object before drawing
+		globalFloodPlane.updateMesh(this.renderer);
+
+		if (!globalFloodPlane.isMeshReady()) {
+			console.warn(' ❌ GeoTwin: Mesh not ready in renderGPUFloodPlane');
+			return;
+		}
+
+		// Check for flood texture (created in FloodSimulationSystem)
+		const floodTexture = globalFloodPlane.floodTexture;
+		if (!floodTexture) {
+			console.warn(' No flood texture found on GPUFloodPlane');
+			return;
+		}
+
+		// COPY EXACT terrain parameters approach
+		const tileParams = terrain.getTileParams({
+			position: globalFloodPlane.position,
+			matrixWorld: globalFloodPlane.matrixWorld
+		});
+
+		if (!tileParams) {
+			return;
+		}
+
+		const terrainRingHeight = <AbstractTexture2DArray>this.getPhysicalResource('TerrainRingHeight').colorAttachments[0].texture;
+
+		const material = globalFloodPlane.material;
+		this.renderer.useMaterial(material);
+
+		const mvMatrix = Mat4.multiply(camera.matrixWorldInverse, globalFloodPlane.matrixWorld);
+		const mvMatrixPrev = Mat4.multiply(this.cameraMatrixWorldInversePrev, globalFloodPlane.matrixWorld);
+
+		// Get terrain parameters for proper rendering
+		const {ring0, levelId, ring0Offset, ring1Offset} = tileParams;
+		const normalTextureTransforms = this.getTileNormalTexturesTransforms(globalFloodPlane);
+		const relativeCameraPosition = this.getCameraPositionRelativeToTile(camera, globalFloodPlane);
+
+		// Set PerMaterial uniforms (same as FloodMaterialContainer expects)
+		material.getUniform('projectionMatrix', 'PerMaterial').value = new Float32Array(camera.jitteredProjectionMatrix.values);
+		material.getUniform('time', 'PerMaterial').value[0] = performance.now() * 0.001;
+		material.updateUniformBlock('PerMaterial');
+
+		// Set PerMesh uniforms EXACTLY like hugging mesh
+		material.getUniform('modelViewMatrix', 'PerMesh').value = new Float32Array(mvMatrix.values);
+		material.getUniform('modelViewMatrixPrev', 'PerMesh').value = new Float32Array(mvMatrixPrev.values);
+		material.getUniform('transformNormal0', 'PerMesh').value = normalTextureTransforms[0];
+		material.getUniform('transformNormal1', 'PerMesh').value = new Float32Array([1, 0, 0, 1]);
+		material.getUniform('terrainRingSize', 'PerMesh').value[0] = ring0.size;
+		material.getUniform('terrainRingOffset', 'PerMesh').value = new Float32Array([
+			ring0Offset.x, ring0Offset.y, ring1Offset.x, ring1Offset.y
+		]);
+		material.getUniform('terrainLevelId', 'PerMesh').value[0] = levelId;
+		material.getUniform('segmentCount', 'PerMesh').value[0] = ring0.segmentCount * 2;
+		material.getUniform('cameraPosition', 'PerMesh').value = new Float32Array(relativeCameraPosition);
+		material.getUniform('detailTextureOffset', 'PerMesh').value = new Float32Array([0, 0]);
+		material.updateUniformBlock('PerMesh');
+
+		// Set textures (same as hugging mesh + flood data)
+		material.getUniform('tMap').value = <AbstractTexture2DArray>this.manager.texturePool.get('projectedMesh');
+		material.getUniform('tNormal').value = <AbstractTexture2DArray>this.manager.texturePool.get('projectedMeshNormal');
+		material.getUniform('tRingHeight').value = terrainRingHeight;
+		material.getUniform('u_floodData').value = floodTexture;
+
+		globalFloodPlane.draw();
 	}
 
 

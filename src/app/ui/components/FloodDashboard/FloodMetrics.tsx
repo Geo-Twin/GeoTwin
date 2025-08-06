@@ -40,9 +40,10 @@ const FloodMetrics: React.FC = () => {
 			await PDFExportService.exportImpactAnalysisToPDF(impactAnalysis, {
 				includeTimestamp: true,
 				includeLogo: true,
-				includeDetailedBreakdown: true
+				includeDetailedBreakdown: true,
+				includeFloodParameters: true
 			});
-			console.log('✅ PDF report exported successfully');
+			console.log('✅ Flood impact report exported successfully');
 		} catch (error) {
 			console.error('❌ Failed to export PDF report:', error);
 		} finally {

@@ -14,7 +14,7 @@
 
 import System from "../System";
 import FastFloodAPI, { FastFloodResponse, FloodSimulationArea, FloodSimulationParams } from "../services/FastFloodAPI";
-import GeoTIFFProcessor, { FloodPolygon } from "../services/GeoTIFFProcessor";
+import GeoTIFFProcessor, { FloodPolygon, FloodRasterData } from "../services/GeoTIFFProcessor";
 import SceneSystem from "./SceneSystem";
 import HuggingFloodPlane from "../objects/HuggingFloodPlane";
 import MathUtils from "~/lib/math/MathUtils";
@@ -23,7 +23,10 @@ import Tile3DProjectedGeometryBuilder from "~/lib/tile-processing/tile3d/builder
 import { Tile3DRingType } from "~/lib/tile-processing/tile3d/builders/Tile3DRing";
 import { ProjectedTextures } from "~/lib/tile-processing/tile3d/textures";
 import TileProjectedMesh from "~/app/objects/TileProjectedMesh";
+import { Tile3DBuffersProjected } from "~/lib/tile-processing/tile3d/buffers/Tile3DBuffers";
 import Vec2 from "~/lib/math/Vec2";
+import { RendererTypes } from "~/lib/renderer/RendererTypes";
+import RenderSystem from "./RenderSystem";
 
 export interface FloodSimulationState {
 	isRunning: boolean;
@@ -32,6 +35,7 @@ export interface FloodSimulationState {
 	duration: number;
 	lastResults: FastFloodResponse | null;
 	floodPolygons: FloodPolygon[];
+	floodRasterData: FloodRasterData | null;
 	impactAnalysis: ImpactAnalysisResults | null;
 	error: string | null;
 }
@@ -44,6 +48,7 @@ export default class FloodSimulationSystem extends System {
 		duration: 3,
 		lastResults: null,
 		floodPolygons: [],
+		floodRasterData: null,
 		impactAnalysis: null,
 		error: null
 	};
@@ -145,27 +150,35 @@ export default class FloodSimulationSystem extends System {
 			console.log(` GeoTwin: Downloading flood data GeoTIFF for custom area...`);
 			const geoTiffData = await FastFloodAPI.downloadGeoTIFF(waterHeightURL);
 
-			// Process flood data using custom area coordinates
-			console.log(` GeoTwin: Processing real FastFlood GeoTIFF data for custom area...`);
-			const floodPolygons = await GeoTIFFProcessor.processWaterHeightGeoTIFF(
+			// Process flood data using custom area coordinates (GPU-BASED APPROACH)
+			console.log(` GeoTwin: Processing real FastFlood GeoTIFF data for GPU rendering...`);
+			const floodRasterData = await GeoTIFFProcessor.processWaterHeightGeoTIFFToRaster(
 				geoTiffData,
 				area.projectedBbox
 			);
 
-			// Create flood visualization for custom area
-			await this.createFloodVisualization(floodPolygons, area);
+			// Create GPU-based flood visualization for custom area
+			await this.createGPUFloodVisualization(floodRasterData, area);
+
+			// LEGACY APPROACH (commented out for performance)
+			// const floodPolygons = await GeoTIFFProcessor.processWaterHeightGeoTIFF(
+			//     geoTiffData,
+			//     area.projectedBbox
+			// );
+			// await this.createFloodVisualization(floodPolygons, area);
 
 			// Store flood polygons in state for impact analysis AFTER visualization
-			this.state.floodPolygons = floodPolygons;
+			// this.state.floodPolygons = floodPolygons;
 
 			console.log(` GeoTwin: Custom area flood simulation completed successfully`);
-			console.log(` Generated ${floodPolygons.length} flood polygons for custom area`);
+			// console.log(` Generated ${floodPolygons.length} flood polygons for custom area`);
 			console.log(` Flood visualization ready! Check selected area for flood planes`);
 			console.log(`📍 Navigate to selected coordinates to see the flood visualization`);
 
 			// Trigger impact analysis after successful flood simulation
 			try {
 				await this.performImpactAnalysis();
+				console.log(' ✅ GeoTwin: Impact analysis completed');
 			} catch (impactError) {
 				console.error(' GeoTwin: Impact analysis failed:', impactError);
 			}
@@ -258,44 +271,40 @@ export default class FloodSimulationSystem extends System {
 			console.log(` GeoTwin: Downloading flood data GeoTIFF...`);
 			const geoTiffData = await FastFloodAPI.downloadGeoTIFF(waterHeightURL);
 
-			// Process flood data
-			console.log(` GeoTwin: Processing real FastFlood GeoTIFF data...`);
-			const floodPolygons = await GeoTIFFProcessor.processWaterHeightGeoTIFF(
+			// Process flood data (GPU-BASED APPROACH)
+			console.log(` GeoTwin: Processing real FastFlood GeoTIFF data for GPU rendering...`);
+			const floodRasterData = await GeoTIFFProcessor.processWaterHeightGeoTIFFToRaster(
 				geoTiffData,
 				area.projectedBbox
 			);
 
-			console.log(` GeoTwin: Processed ${floodPolygons.length} flood polygons`);
-			if (floodPolygons.length > 0) {
-				console.log(`📍 GeoTwin: Sample flood polygon:`, {
-					boundingBox: floodPolygons[0].boundingBox,
-					waterHeight: floodPolygons[0].waterHeights[0],
-					cellSize: { width: floodPolygons[0].cellWidth, height: floodPolygons[0].cellHeight }
-				});
+			console.log(` GeoTwin: Processed raster data ${floodRasterData.width}x${floodRasterData.height}`);
 
-				// Show all water heights for small datasets (like demo with only 3 polygons)
-				if (floodPolygons.length <= 10) {
-					console.log(` All flood heights:`, floodPolygons.map((p, i) => `Plane ${i+1}: ${p.waterHeights[0].toFixed(3)}m`));
-				}
-			}
+			// Store flood raster data in state for impact analysis
+			this.state.floodRasterData = floodRasterData;
 
-			this.state.floodPolygons = floodPolygons;
+			// Create GPU-based flood visualization
+			console.log(` GeoTwin: Creating GPU-based flood visualization...`);
+			await this.createGPUFloodVisualization(floodRasterData, area);
 
-			// Create flood visualization
-			console.log(` GeoTwin: Creating flood visualization...`);
-
-			// Use simple color-based depth visualization (much more reliable)
-			console.log(` GeoTwin: Creating color-based flood depth visualization`);
-			await this.createFloodVisualization(floodPolygons, area);
+			// LEGACY APPROACH (commented out for performance)
+			// const floodPolygons = await GeoTIFFProcessor.processWaterHeightGeoTIFF(
+			//     geoTiffData,
+			//     area.projectedBbox
+			// );
+			// console.log(` GeoTwin: Processed ${floodPolygons.length} flood polygons`);
+			// this.state.floodPolygons = floodPolygons;
+			// await this.createFloodVisualization(floodPolygons, area);
 
 			console.log(` GeoTwin: Flood simulation completed for ${areaId}`);
-			console.log(` Generated ${floodPolygons.length} flood polygons`);
+			// console.log(` Generated ${floodPolygons.length} flood polygons`);
 			console.log(` Flood visualization ready! Check Grand Bay area for flood planes`);
 			console.log(`📍 Navigate to Grand Bay, Dominica (15.25°N, 61.30°W) to see the flood visualization`);
 
 			// Trigger impact analysis after successful flood simulation
 			try {
 				await this.performImpactAnalysis();
+				console.log(' ✅ GeoTwin: Impact analysis completed');
 			} catch (impactError) {
 				console.error(' GeoTwin: Impact analysis failed:', impactError);
 			}
@@ -309,7 +318,180 @@ export default class FloodSimulationSystem extends System {
 	}
 
 	/**
-	 * Create flood visualization from processed data
+	 * Create GPU-based flood visualization from raster data (HIGH PERFORMANCE)
+	 */
+	private async createGPUFloodVisualization(
+		floodRasterData: FloodRasterData,
+		area: FloodSimulationArea
+	): Promise<void> {
+		console.log(' GeoTwin: Reverting to proven HuggingFloodPlane approach...');
+
+		// Instead of using raster data, re-download and process using the WORKING method
+		const fastFloodResponse = this.state.lastResults;
+		if (!fastFloodResponse) {
+			console.error(' No FastFlood results available for proven approach');
+			return;
+		}
+
+		const waterHeightURL = FastFloodAPI.getWaterHeightURL(fastFloodResponse);
+		if (!waterHeightURL) {
+			console.error(' No water height URL available for proven approach');
+			return;
+		}
+
+		console.log(' GeoTwin: Re-downloading GeoTIFF for proven processing...');
+		const geoTiffData = await FastFloodAPI.downloadGeoTIFF(waterHeightURL);
+
+		// Use the PROVEN method that works
+		console.log(' GeoTwin: Processing with proven GeoTIFFProcessor.processWaterHeightGeoTIFF...');
+		const floodPolygons = await GeoTIFFProcessor.processWaterHeightGeoTIFF(
+			geoTiffData,
+			area.projectedBbox
+		);
+
+		console.log(` Created ${floodPolygons.length} flood polygons using proven method`);
+
+		// Store in state for impact analysis
+		this.state.floodPolygons = floodPolygons;
+
+		// Use proven data processing but create GPU flood plane instead
+		await this.createGPUFloodFromPolygons(floodPolygons, area);
+
+		console.log(` ✅ GPU flood visualization created using proven data processing!`);
+	}
+
+	/**
+	 * Create GPU flood plane from proven polygon data
+	 * Uses exact same data processing as working approach but renders as single GPU plane
+	 */
+	private async createGPUFloodFromPolygons(
+		floodPolygons: FloodPolygon[],
+		area: FloodSimulationArea
+	): Promise<void> {
+		console.log(` Creating GPU flood plane from ${floodPolygons.length} proven flood polygons`);
+
+		this.clearFloodVisualization();
+
+		const sceneSystem = this.systemManager.getSystem(SceneSystem);
+		if (!sceneSystem) {
+			console.error(' SceneSystem not available');
+			return;
+		}
+
+		if (floodPolygons.length === 0) {
+			console.warn(' No flood polygons to visualize');
+			return;
+		}
+
+		// Calculate overall bounding box from all flood polygons
+		let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+		for (const polygon of floodPolygons) {
+			minX = Math.min(minX, polygon.boundingBox.minX);
+			minY = Math.min(minY, polygon.boundingBox.minY);
+			maxX = Math.max(maxX, polygon.boundingBox.maxX);
+			maxY = Math.max(maxY, polygon.boundingBox.maxY);
+		}
+
+		// Create single large HuggingFloodPlane using PROVEN approach
+		// Position at CENTER like working individual planes
+		const centerX = (minX + maxX) / 2;
+		const centerY = (minY + maxY) / 2;
+		const geoTwinCoords = this.convertToGeoTwinCoordinates(centerX, centerY, area);
+
+		// Create large HuggingFloodPlane with special textureId for flood rendering
+		const largeFloodPlane = new HuggingFloodPlane([0, 0.5, 1]); // Blue color for flood
+
+		// Set special textureId = 100 for flood water (different from normal water textureId = 0)
+		(largeFloodPlane as any).textureId = 100;
+
+		// Position at center using EXACT same approach as working individual planes
+		const terrainOffset = 0.5; // 50cm above terrain - same as working individual planes
+		largeFloodPlane.position.set(geoTwinCoords.x, terrainOffset, geoTwinCoords.z);
+		largeFloodPlane.updateMatrix();
+
+		// Store flood data for large area coverage
+		const planeWidth = maxX - minX;
+		const planeHeight = maxY - minY;
+		const avgWaterHeight = floodPolygons.reduce((sum, p) => {
+			const avgHeight = p.waterHeights.length > 0
+				? p.waterHeights.reduce((s, h) => s + h, 0) / p.waterHeights.length
+				: 0;
+			return sum + avgHeight;
+		}, 0) / floodPolygons.length;
+
+		// Set large grid cell size to cover entire flood area
+		(largeFloodPlane as any).floodDepth = avgWaterHeight;
+		(largeFloodPlane as any).gridCellSize = {
+			width: planeWidth,
+			height: planeHeight
+		};
+
+		// Store flood area bounds for proper UV mapping
+		(largeFloodPlane as any).floodAreaBounds = {
+			minX, minY, maxX, maxY,
+			width: planeWidth,
+			height: planeHeight
+		};
+
+		// Create flood texture for transparency
+		const textureSize = 256;
+		const floodData = new Float32Array(textureSize * textureSize);
+
+		// Fill texture with flood depths from polygons (ROTATED 90 degrees anti-clockwise)
+		for (let y = 0; y < textureSize; y++) {
+			for (let x = 0; x < textureSize; x++) {
+				// ROTATION FIX: Swap and flip coordinates for 90-degree anti-clockwise rotation
+				const worldX = minX + (y / textureSize) * planeWidth;  // Use Y for X
+				const worldY = minY + ((textureSize - 1 - x) / textureSize) * planeHeight;  // Use flipped X for Y
+
+				// Find polygon containing this point
+				const polygon = floodPolygons.find(p =>
+					worldX >= p.boundingBox.minX && worldX <= p.boundingBox.maxX &&
+					worldY >= p.boundingBox.minY && worldY <= p.boundingBox.maxY
+				);
+
+				// Use average water height from polygon's waterHeights array
+				const waterHeight = polygon && polygon.waterHeights.length > 0
+					? polygon.waterHeights.reduce((sum, h) => sum + h, 0) / polygon.waterHeights.length
+					: 0.0;
+
+				floodData[y * textureSize + x] = waterHeight;
+			}
+		}
+
+		// Create flood texture
+		const renderSystem = this.systemManager.getSystem(RenderSystem);
+		const renderer = (renderSystem as any).renderer;
+
+		const floodTexture = renderer.createTexture2D({
+			width: textureSize,
+			height: textureSize,
+			data: floodData,
+			format: RendererTypes.TextureFormat.R32Float,
+			minFilter: RendererTypes.MinFilter.Linear,
+			magFilter: RendererTypes.MagFilter.Linear,
+			wrapS: RendererTypes.TextureWrap.ClampToEdge,
+			wrapT: RendererTypes.TextureWrap.ClampToEdge,
+			mipmaps: false
+		});
+
+		// Attach flood texture to the large flood plane
+		(largeFloodPlane as any).floodTexture = floodTexture;
+
+		// Add to scene using EXACT same approach
+		const wrapper = sceneSystem.objects.wrapper;
+		wrapper.add(largeFloodPlane);
+		(sceneSystem as any).objects['globalFloodPlane'] = largeFloodPlane;
+
+		console.log(` ✅ Large HuggingFloodPlane created with transparency texture!`);
+		console.log(` Plane dimensions: ${planeWidth.toFixed(1)}x${planeHeight.toFixed(1)} covering ${floodPolygons.length} flood areas`);
+	}
+
+
+
+	/**
+	 * Create flood visualization from processed data (LEGACY METHOD - kept for compatibility)
 	 */
 	private async createFloodVisualization(
 		floodPolygons: FloodPolygon[],
@@ -446,13 +628,7 @@ export default class FloodSimulationSystem extends System {
 		return { x: geoTwinCoords.x, z: geoTwinCoords.y };
 	}
 
-	/**
-	 * Update flood plane geometry with custom contour vertices
-	 */
-	private updateFloodPlaneGeometry(floodPlane: HuggingFloodPlane, vertices: number[]): void {
-		// Store custom vertices - they will be used when updateMesh() is called by render system
-		(floodPlane as any).customVertices = vertices;
-	}
+
 
 	/**
 	 * Calculate smoothed depth by blending with neighboring flood planes
@@ -631,15 +807,31 @@ export default class FloodSimulationSystem extends System {
 			width: Math.max(width, height), // Use larger dimension for coverage
 			uvFollowRoad: false,
 			uvScale: 10,
-			textureId: ProjectedTextures.Water, // Use water texture like roads use their textures
+			textureId: 100, // Use special flood textureId = 100 for flood water rendering
 			height: floodDepth // This is the critical parameter that roads use!
 		});
 
 		// Get the geometry using EXACT same process as roads
 		const geometry = builder.getGeometry();
 
+		// Convert AABB3D boundingBox to flat BoundingBox format (like roads do)
+		const buffers: Tile3DBuffersProjected = {
+			positionBuffer: geometry.positionBuffer,
+			normalBuffer: geometry.normalBuffer,
+			uvBuffer: geometry.uvBuffer,
+			textureIdBuffer: geometry.textureIdBuffer,
+			boundingBox: {
+				minX: geometry.boundingBox.min.x,
+				minY: geometry.boundingBox.min.y,
+				minZ: geometry.boundingBox.min.z,
+				maxX: geometry.boundingBox.max.x,
+				maxY: geometry.boundingBox.max.y,
+				maxZ: geometry.boundingBox.max.z
+			}
+		};
+
 		// Create TileProjectedMesh using EXACT same class as roads
-		const floodPlane = new TileProjectedMesh(geometry);
+		const floodPlane = new TileProjectedMesh(buffers);
 		// Add small Z-offset (1cm) to eliminate depth-fighting with terrain
 		floodPlane.position.set(centerX, 0.01, centerZ);
 		floodPlane.updateMatrix();
@@ -748,6 +940,24 @@ export default class FloodSimulationSystem extends System {
 			}
 		}
 
+		// Clear GPU-based global flood plane
+		const globalFloodPlane = sceneObjects.globalFloodPlane;
+		if (globalFloodPlane) {
+			wrapper.remove(globalFloodPlane);
+			globalFloodPlane.dispose();
+			delete sceneObjects.globalFloodPlane;
+			console.log(' GeoTwin: GPU global flood plane cleared');
+		}
+
+		// Clear TileProjectedMesh-based global flood plane
+		const globalFloodProjectedMesh = sceneObjects.globalFloodProjectedMesh;
+		if (globalFloodProjectedMesh) {
+			wrapper.remove(globalFloodProjectedMesh);
+			globalFloodProjectedMesh.dispose();
+			delete sceneObjects.globalFloodProjectedMesh;
+			console.log(' GeoTwin: GPU global flood projected mesh cleared');
+		}
+
 		this.floodPlanes = [];
 		this.state.floodPolygons = [];
 		console.log(` GeoTwin: Flood visualization cleared (removed ${objectsToDelete.length} flood planes)`);
@@ -803,10 +1013,10 @@ export default class FloodSimulationSystem extends System {
 			this.clearFloodVisualization();
 
 			// Recreate flood visualization from existing results
-			const geoTiffUrl = FastFloodAPI.getWaterHeightGeoTIFFUrl(this.state.lastResults);
+			const geoTiffUrl = FastFloodAPI.getWaterHeightURL(this.state.lastResults);
 			if (geoTiffUrl) {
-				await this.processGeoTIFFAndCreateFloodPlanes(geoTiffUrl);
-				console.log(' GeoTwin: Flood visualization refreshed successfully');
+				// TODO: Implement GPU-based flood visualization refresh
+				console.log(' GeoTwin: Flood visualization refresh not yet implemented for GPU approach');
 			}
 		} catch (error) {
 			console.error(' GeoTwin: Failed to refresh flood visualization:', error);

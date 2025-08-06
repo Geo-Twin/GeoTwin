@@ -21,6 +21,8 @@
 		"skipLibCheck": true,
 		"jsx": "react",
 		"baseUrl": "./src",
+		"outDir": "./dist",
+		"rootDir": "./src",
 		"paths": {
 			"~/*": ["*"]
 		}

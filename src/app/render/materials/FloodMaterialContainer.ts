@@ -5,12 +5,12 @@ import ResourceLoader from "../../world/ResourceLoader";
 import AbstractRenderer from "~/lib/renderer/abstract-renderer/AbstractRenderer";
 import Config from "../../Config";
 
-export default class ProjectedMeshMaterialContainer extends MaterialContainer {
+export default class FloodMaterialContainer extends MaterialContainer {
 	public constructor(renderer: AbstractRenderer, isExtruded: boolean) {
 		super(renderer);
 
 		this.material = this.renderer.createMaterial({
-			name: 'Projected mesh material',
+			name: 'Flood material',
 			uniforms: [
 				{
 					name: 'modelViewMatrix',
@@ -44,10 +44,11 @@ export default class ProjectedMeshMaterialContainer extends MaterialContainer {
 					value: this.renderer.createTexture2D({
 						anisotropy: 16,
 						data: ResourceLoader.get('waterNormal'),
+						format: RendererTypes.TextureFormat.RGB8,
 						minFilter: RendererTypes.MinFilter.LinearMipmapLinear,
 						magFilter: RendererTypes.MagFilter.Linear,
-						wrap: RendererTypes.TextureWrap.Repeat,
-						format: RendererTypes.TextureFormat.RGBA8Unorm,
+						wrapS: RendererTypes.TextureWrap.Repeat,
+						wrapT: RendererTypes.TextureWrap.Repeat,
 						mipmaps: true
 					})
 				}, {
@@ -56,11 +57,12 @@ export default class ProjectedMeshMaterialContainer extends MaterialContainer {
 					type: RendererTypes.UniformType.Texture2D,
 					value: this.renderer.createTexture2D({
 						anisotropy: 16,
-						data: ResourceLoader.get('noise'),
+						data: ResourceLoader.get('waterNoise'),
+						format: RendererTypes.TextureFormat.RGB8,
 						minFilter: RendererTypes.MinFilter.LinearMipmapLinear,
 						magFilter: RendererTypes.MagFilter.Linear,
-						wrap: RendererTypes.TextureWrap.Repeat,
-						format: RendererTypes.TextureFormat.RGBA8Unorm,
+						wrapS: RendererTypes.TextureWrap.Repeat,
+						wrapT: RendererTypes.TextureWrap.Repeat,
 						mipmaps: true
 					})
 				}, {
@@ -150,8 +152,8 @@ export default class ProjectedMeshMaterialContainer extends MaterialContainer {
 					dstFactor: RendererTypes.BlendFactor.Zero
 				}
 			},
-			vertexShaderSource: Shaders.projected.vertex,
-			fragmentShaderSource: Shaders.projected.fragment
+			vertexShaderSource: Shaders.flood.vertex,
+			fragmentShaderSource: Shaders.flood.fragment
 		});
 	}
 }

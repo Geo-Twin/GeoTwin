@@ -125,20 +125,18 @@ export default class HuggingFloodPlane extends RenderableObject3D {
 	 * Roads use projectGeometryOnTerrain with height parameter - we must do the same
 	 */
 	private create3DFloodGeometry(halfWidth: number, halfHeight: number, depth: number): Float32Array {
-		// Simple flood height - position offset is handled in FloodSimulationSystem
-		const floodHeight = Math.max(depth, 0.05); // Minimum 5cm height for visibility
-
-		// Create geometry with Y coordinate = height above terrain (EXACT road methodology)
+		// Create FLAT geometry (Y=0) for terrain hugging - let vertex shader handle terrain displacement
+		// This is how farms/beaches work - flat geometry that hugs terrain via shader
 		return new Float32Array([
 			// Triangle 1
-			-halfWidth, floodHeight, -halfHeight,  // Bottom-left
-			 halfWidth, floodHeight, -halfHeight,  // Bottom-right
-			-halfWidth, floodHeight,  halfHeight,  // Top-left
+			-halfWidth, 0, -halfHeight,  // Bottom-left
+			 halfWidth, 0, -halfHeight,  // Bottom-right
+			-halfWidth, 0,  halfHeight,  // Top-left
 
 			// Triangle 2
-			 halfWidth, floodHeight, -halfHeight,  // Bottom-right
-			 halfWidth, floodHeight,  halfHeight,  // Top-right
-			-halfWidth, floodHeight,  halfHeight   // Top-left
+			 halfWidth, 0, -halfHeight,  // Bottom-right
+			 halfWidth, 0,  halfHeight,  // Top-right
+			-halfWidth, 0,  halfHeight   // Top-left
 		]);
 	}
 
@@ -188,7 +186,9 @@ export default class HuggingFloodPlane extends RenderableObject3D {
 	 */
 	private generate3DFloodTextureIds(vertexCount: number): Uint8Array {
 		const textureIds = new Uint8Array(vertexCount);
-		textureIds.fill(0); // Use Water texture ID (same as rivers/oceans) for proper rendering
+		// Use special textureId for flood water (can be overridden by setting textureId property)
+		const floodTextureId = (this as any).textureId || 0; // Default to 0 (normal water) if not set
+		textureIds.fill(floodTextureId);
 		return textureIds;
 	}
 }

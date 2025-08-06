@@ -39,6 +39,7 @@ interface SceneObjects {
 	customCube?: CustomCube;
 	blackFloodPlane?: HuggingFloodPlane; // GeoTwin: Black hugging flood plane (example)
 	yellowFloodPlane?: HuggingFloodPlane; // GeoTwin: Yellow hugging flood plane (example)
+	globalFloodPlane?: any; // GeoTwin: GPU-based flood plane for high-performance rendering
 
 }
 

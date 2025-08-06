@@ -36,6 +36,7 @@ uniform sampler2DArray tMap;
 uniform sampler2DArray tNormal;
 uniform sampler2D tWaterNormal;
 uniform sampler2D tWaterNoise;
+uniform sampler2D u_floodData;
 
 #include <packNormal>
 #include <getMotionVector>
@@ -118,6 +119,34 @@ void main() {
 		vec3 mvWaterNormal = vec3(modelViewMatrix * vec4(normalBlendUnpackedRNM(vec3(0, 0, 1), waterNormal), 0));
 
 		outColor = vec4(0.15, 0.45, 0.85, 0.6); // Original blue water - UNCHANGED
+		outGlow = vec3(0);
+		outNormal = packNormal(mvWaterNormal);
+		outRoughnessMetalnessF0 = vec3(0.05, 0, 0.03);
+		outMotion = getMotionVector(vClipPos, vClipPosPrev);
+		outObjectId = 0u;
+
+		return;
+	}
+
+	// GeoTwin: Flood water rendering with transparency (textureId = 100)
+	if (vTextureId == 100) {
+		// Sample flood data texture for transparency
+		float waterDepth = texture(u_floodData, vUv).r;
+
+		// If there is no water at this pixel, discard it so the terrain shows through
+		if (waterDepth < 0.01) {
+			discard;
+		}
+
+		// Same water rendering as normal water but with flood color
+		vec2 normalizedUV = fract((vUv + detailTextureOffset) / (TILE_SIZE * DETAIL_UV_SCALE));
+		normalizedUV = vec2(normalizedUV.y, 1. - normalizedUV.x);
+
+		vec3 waterNormal = sampleWaterNormal(tWaterNormal, tWaterNoise, normalizedUV, time);
+		vec3 mvWaterNormal = vec3(modelViewMatrix * vec4(normalBlendUnpackedRNM(vec3(0, 0, 1), waterNormal), 0));
+
+		// GeoTwin: Muddy blue-brown flood water color
+		outColor = vec4(0.2, 0.35, 0.5, 0.7); // Flood water color
 		outGlow = vec3(0);
 		outNormal = packNormal(mvWaterNormal);
 		outRoughnessMetalnessF0 = vec3(0.05, 0, 0.03);

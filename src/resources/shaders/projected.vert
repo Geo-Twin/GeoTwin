@@ -121,7 +121,9 @@ void main() {
 		float height = 0.;
 	#endif
 
-	vec3 transformedPosition = position + vec3(0, height, 0);
+	// GeoTwin: Add small offset for flood water to render above terrain features
+	float floodOffset = (vTextureId == 100) ? 0.1 : 0.0; // 10cm above terrain for flood
+	vec3 transformedPosition = position + vec3(0, height + floodOffset, 0);
 	vec4 cameraSpacePosition = modelViewMatrix * vec4(transformedPosition, 1);
 	vec4 cameraSpacePositionPrev = modelViewMatrixPrev * vec4(transformedPosition, 1);
 

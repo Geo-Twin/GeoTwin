@@ -48,9 +48,56 @@ export interface AffectedBuilding {
 	floodDepth: number;
 }
 
+export interface FloodRasterData {
+	data: Float32Array | Uint16Array | Uint8Array;
+	width: number;
+	height: number;
+	boundingBox: [number, number, number, number];
+}
+
 export class GeoTIFFProcessor {
 	/**
-	 * Process water height GeoTIFF into flood polygons
+	 * Process water height GeoTIFF into raw raster data for GPU-based rendering
+	 * High-performance alternative to polygon-based approach
+	 */
+	public static async processWaterHeightGeoTIFFToRaster(
+		arrayBuffer: ArrayBuffer,
+		projectedBbox: [number, number, number, number]
+	): Promise<FloodRasterData> {
+		console.log(' GeoTwin: Processing water height GeoTIFF for GPU rendering...');
+
+		// Validate we have real GeoTIFF data
+		if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+			console.warn(` GeoTwin: No GeoTIFF data provided, using mock data`);
+			return this.createMockFloodRasterData(projectedBbox);
+		}
+
+		console.log(` GeoTwin: Processing real GeoTIFF data (${arrayBuffer.byteLength} bytes)`);
+
+		// Validate TIFF format
+		const isValid = this.validateTIFFFormat(arrayBuffer);
+		if (!isValid) {
+			console.warn(` GeoTwin: Invalid TIFF format, using mock data`);
+			return this.createMockFloodRasterData(projectedBbox);
+		}
+
+		console.log(` GeoTwin: Valid GeoTIFF format detected`);
+
+		try {
+			// Parse the real GeoTIFF data to raw raster
+			const floodRasterData = await this.parseRealGeoTIFFToRaster(arrayBuffer, projectedBbox);
+			console.log(` GeoTwin: Generated raster data ${floodRasterData.width}x${floodRasterData.height} for GPU rendering`);
+			return floodRasterData;
+
+		} catch (error) {
+			console.error(` GeoTwin: Failed to parse GeoTIFF:`, error);
+			console.log(` GeoTwin: Falling back to mock data`);
+			return this.createMockFloodRasterData(projectedBbox);
+		}
+	}
+
+	/**
+	 * Process water height GeoTIFF into flood polygons (LEGACY METHOD)
 	 * This is a simplified implementation - in production you'd use a proper GeoTIFF library
 	 */
 	public static async processWaterHeightGeoTIFF(
@@ -132,6 +179,51 @@ export class GeoTIFFProcessor {
 
 		console.log(` GeoTwin: Created ${polygons.length} flood polygons`);
 		return polygons;
+	}
+
+	/**
+	 * Create mock flood raster data for testing GPU-based rendering
+	 */
+	private static createMockFloodRasterData(
+		projectedBbox: [number, number, number, number]
+	): FloodRasterData {
+		const [minX, minY, maxX, maxY] = projectedBbox;
+
+		// Create a 256x256 raster for testing
+		const width = 256;
+		const height = 256;
+		const data = new Float32Array(width * height);
+
+		// Create some mock flood patterns
+		for (let y = 0; y < height; y++) {
+			for (let x = 0; x < width; x++) {
+				const idx = y * width + x;
+
+				// Normalize coordinates to 0-1
+				const nx = x / width;
+				const ny = y / height;
+
+				// Create circular flood zones
+				const dist1 = Math.sqrt((nx - 0.3) ** 2 + (ny - 0.4) ** 2);
+				const dist2 = Math.sqrt((nx - 0.7) ** 2 + (ny - 0.6) ** 2);
+				const dist3 = Math.sqrt((nx - 0.5) ** 2 + (ny - 0.2) ** 2);
+
+				let waterDepth = 0;
+				if (dist1 < 0.15) waterDepth = Math.max(waterDepth, 2.5 * (1 - dist1 / 0.15));
+				if (dist2 < 0.12) waterDepth = Math.max(waterDepth, 1.8 * (1 - dist2 / 0.12));
+				if (dist3 < 0.08) waterDepth = Math.max(waterDepth, 1.2 * (1 - dist3 / 0.08));
+
+				data[idx] = waterDepth;
+			}
+		}
+
+		console.log(` GeoTwin: Created mock raster data ${width}x${height} for GPU rendering`);
+		return {
+			data,
+			width,
+			height,
+			boundingBox: projectedBbox
+		};
 	}
 
 	/**
@@ -295,7 +387,53 @@ export class GeoTIFFProcessor {
 	}
 
 	/**
-	 * Parse real GeoTIFF data to extract flood polygons
+	 * Parse real GeoTIFF data to extract raw raster data for GPU-based rendering
+	 */
+	public static async parseRealGeoTIFFToRaster(
+		arrayBuffer: ArrayBuffer,
+		projectedBbox: [number, number, number, number]
+	): Promise<FloodRasterData> {
+		// Import geotiff library dynamically
+		const { fromArrayBuffer } = await import('geotiff');
+
+		console.log(` GeoTwin: Parsing GeoTIFF with geotiff.js for GPU rendering...`);
+
+		// Parse the GeoTIFF
+		const tiff = await fromArrayBuffer(arrayBuffer);
+		const image = await tiff.getImage();
+
+		// Get image metadata
+		const width = image.getWidth();
+		const height = image.getHeight();
+		const bbox = image.getBoundingBox();
+		const [minX, minY, maxX, maxY] = bbox;
+
+		console.log(`📐 GeoTIFF dimensions: ${width}x${height}`);
+		console.log(`📍 GeoTIFF bbox: [${bbox.join(', ')}]`);
+
+		// Read the raster data (water heights)
+		const rasters = await image.readRasters();
+		const waterHeights = rasters[0]; // First band contains water heights
+
+		// Convert to regular array for min/max calculation, filtering out NaN and invalid values
+		const waterHeightArray = Array.from(waterHeights).filter(h => !isNaN(h) && isFinite(h));
+		const minHeight = waterHeightArray.length > 0 ? Math.min(...waterHeightArray) : NaN;
+		const maxHeight = waterHeightArray.length > 0 ? Math.max(...waterHeightArray) : NaN;
+
+		console.log(` Water height range: ${isNaN(minHeight) ? 'No valid data' : minHeight.toFixed(3)} to ${isNaN(maxHeight) ? 'No valid data' : maxHeight.toFixed(3)} meters`);
+		console.log(` Valid data points: ${waterHeightArray.length} out of ${waterHeights.length} total cells`);
+
+		// Return raw raster data for GPU processing
+		return {
+			data: waterHeights,
+			width,
+			height,
+			boundingBox: bbox
+		};
+	}
+
+	/**
+	 * Parse real GeoTIFF data to extract flood polygons (LEGACY METHOD - kept for compatibility)
 	 */
 	private static async parseRealGeoTIFF(
 		arrayBuffer: ArrayBuffer,
