@@ -1,7 +1,7 @@
 # GeoTwin - Advanced 3D Flood Risk Assessment Platform
 # Multi-stage Docker build for production deployment
 
-FROM node:18-alpine as builder
+FROM node:20-alpine as builder
 
 # Install git for dependency resolution
 RUN apk add --no-cache git
@@ -21,7 +21,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine as runner
+FROM node:20-alpine as runner
 WORKDIR /usr/src/app
 
 # Copy built application

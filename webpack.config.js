@@ -32,7 +32,8 @@ module.exports = (env, argv) => ([{
 	entry: './src/app/App.ts',
 	output: {
 		filename: './js/index.js',
-		path: path.resolve(__dirname, 'build')
+		path: path.resolve(__dirname, 'build'),
+		publicPath: process.env.NODE_ENV === 'production' ? '/GeoTwin/' : '/'
 	},
 	performance: {
 		maxEntrypointSize: 8000000,
